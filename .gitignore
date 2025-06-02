@@ -1,0 +1,5 @@
+/target
+*.cer
+*.key
+/.idea
+config.json
