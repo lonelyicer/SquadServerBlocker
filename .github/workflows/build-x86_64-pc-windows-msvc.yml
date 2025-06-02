@@ -1,4 +1,4 @@
-name: Build (x86_64-pc-windows-msvc)
+name: Build
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Build on Windows
+    name: Build (x86_64-pc-windows-msvc)
     runs-on: windows-latest
 
     env:

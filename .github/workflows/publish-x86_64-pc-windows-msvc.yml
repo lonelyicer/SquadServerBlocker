@@ -1,0 +1,60 @@
+﻿name: Publish
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    name: Publish (x86_64-pc-windows-msvc)
+    runs-on: windows-latest
+
+    env:
+      BINARY_NAME: SquadServerBlocker
+      TARGET: x86_64-pc-windows-msvc
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ env.TARGET }}
+
+      - name: Get version from Cargo.toml
+        id: version
+        run: |
+          $version = (Select-String -Path "Cargo.toml" -Pattern 'version\s*=\s*"(.*?)"' | ForEach-Object { $_.Matches[0].Groups[1].Value })
+          echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "::set-output name=version::$version"
+        shell: pwsh
+
+      - name: Build (Release)
+        run: cargo build --release --target ${{ env.TARGET }}
+
+      - name: Package Release Zip
+        run: |
+          $zipName = "${{ env.BINARY_NAME }}-${{ env.TARGET }}-v${{ env.VERSION }}.zip"
+          Compress-Archive -Path "target/${{ env.TARGET }}/release/${{ env.BINARY_NAME }}.exe" -DestinationPath $zipName
+          echo "ZIP_NAME=$zipName" | Out-File -FilePath $env:GITHUB_ENV -Append
+        shell: pwsh
+
+      - name: Create Git Tag
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git tag "v${{ env.VERSION }}"
+          git push origin "v${{ env.VERSION }}"
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: v${{ env.VERSION }}
+          draft: false
+          prerelease: false
+          files: ${{ env.ZIP_NAME }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
