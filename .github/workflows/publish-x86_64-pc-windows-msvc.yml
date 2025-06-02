@@ -24,7 +24,13 @@ jobs:
       - name: Get version from Cargo.toml
         id: version
         run: |
-          $version = (Select-String -Path "Cargo.toml" -Pattern 'version\s*=\s*"(.*?)"' | ForEach-Object { $_.Matches[0].Groups[1].Value })
+          $content = Get-Content Cargo.toml
+          foreach ($line in $content) {
+            if ($line -match '^version\s*=\s*"(.*?)"') {
+              $version = $matches[1]
+              break
+            }
+          }
           echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
           echo "::set-output name=version::$version"
         shell: pwsh
