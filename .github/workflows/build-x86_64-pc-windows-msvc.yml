@@ -1,0 +1,49 @@
+name: Build (x86_64-pc-windows-msvc)
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    name: Build on Windows
+    runs-on: windows-latest
+
+    env:
+      BINARY_NAME: SquadServerBlocker
+      TARGET: x86_64-pc-windows-msvc
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ env.TARGET }}
+
+      - name: Extract version from Cargo.toml
+        id: version
+        run: |
+          $version = (Select-String -Path "Cargo.toml" -Pattern 'version\s*=\s*"(.*?)"' | ForEach-Object { $_.Matches[0].Groups[1].Value })
+          echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+        shell: pwsh
+
+      - name: Build (Release)
+        run: cargo build --release --target ${{ env.TARGET }}
+
+      - name: Package binary
+        run: |
+          $name = "${{ env.BINARY_NAME }}-${{ env.TARGET }}-v${{ env.VERSION }}"
+          $zip = "$name.zip"
+          Compress-Archive -Path target/${{ env.TARGET }}/release/${{ env.BINARY_NAME }}.exe -DestinationPath $zip
+          echo "ZIP_NAME=$zip" | Out-File -FilePath $env:GITHUB_ENV -Append
+        shell: pwsh
+
+      - name: Upload artifact (for push)
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ZIP_NAME }}
+          path: ${{ env.ZIP_NAME }}
